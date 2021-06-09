@@ -27,7 +27,20 @@ What I have not implemented yet ( indicated in estimate() )
 """
 
 #function to calculate curvature estimate for a single triangle {a, b, c}
-def Ka(D, m, b, c, a):
+def createDistance(component, node_list):     #function to create the Distance Matrix D
+    n = component.order()  #Number of nodes in Gr
+    D = np.zeros((n,n)) #This will be the distance matrix
+
+    for i in range(n):  #Create the Distance Matrix
+        # print(f"Working on {i} node")
+        for j in range(i,n-1):
+                D[i][j+1] = len(nx.shortest_path(component, source=node_list[i],target=node_list[j+1]))-1
+                # print(f"Distance({node_list[i]},{node_list[j+1]}) = {D[i][j+1]}")
+    D = D+D.T
+    # print(D)
+    return D
+
+def Ka(D, m, b, c, a, node_list):
     if a == m: return 0.0
     k = D[a][m]**2 + D[b][c]**2/4.0 - (D[a][b]**2 + D[a][c]**2)/2.0
     k /= 2*D[a][m]
@@ -35,26 +48,44 @@ def Ka(D, m, b, c, a):
     return k
 
 #function to sample 1000*W[i] triangles from a connected component and calculate the curvature estimate for each
-def sample_G(component, D, n, w):   #Parameters: the connected component, distance matrix, number of nodes, weight
+def sample_G(component, n, w):   #Parameters: the connected component, distance matrix, number of nodes, weight
+    if n < 3:
+        # print(f"Only {n} nodes, returning 0")
+        return np.array([0])
+
+    node_list = list(component.nodes)
+    # print("Creating Distance Matrix...")
+    D = createDistance(component, node_list)  #Create the Distance Matrix D
+    # print("Done Creating Distance Matrix")
     samples = []                                    #This will contain the curvature estimates for all the sampled triangles
     _cnt = 0
-    while _cnt < 1000*w:                            
-        m = np.random.randint(0, n)                 #pick randomly m, the midpoint of the shortest path connecting b to c (b, c will be m's two neighbors)
-        edges = list(G.edges(m))                    
+
+    while _cnt < 1000*w:
+        m_index = np.random.randint(0, n)                            
+        m = node_list[m_index]                 #pick randomly m, the midpoint of the shortest path connecting b to c (b, c will be m's two neighbors)
+        edges = list(component.edges(m))                    
         # print(f"edges of {m}: {edges}")
         i = np.random.randint(0, len(edges))        #pick a random node (2nd node of the triangle, node b)
         j = np.random.randint(0, len(edges))        #pick a random node (3rd node of the triangle, node c)
         b = edges[i][1]
         c = edges[j][1]
         if b==c: continue
-        a = np.random.randint(0, n)                 #pick a randdom node (1st node of the triangle, node a)
-        k = Ka(D, m, b, c, a)                       #calculate the curvature estimate for that function.
+        a = node_list[np.random.randint(0, n)]                 #pick a randdom node (1st node of the triangle, node a)
+
+        b_index = node_list.index(b)
+        c_index = node_list.index(c)
+        a_index = node_list.index(a)
+        k = Ka(D, m_index, b_index, c_index, a_index, node_list)                       #calculate the curvature estimate for that function.
         samples.append(k)                           
         # print(k)
+
+        # if _cnt%100 == 0:
+        #     print(f"Finished on triangle {_cnt}")
 
         _cnt += 1
 
     return np.array(samples)
+
 
 
 def estimate(G_list):
@@ -64,31 +95,36 @@ def estimate(G_list):
     2. Create the distance matrix D which gets the distance between two nodes on Gr
     3. Loop through the following instructions for each undirected graph Gr for each relation r
     """
+    relation_estimates = []
+    print(f"Calculating the Curvature Estimate for {len(G_list)} Gr")
 
-    for Gr in G_list:
+    count = 1
+    for Gr in G_list:   #iterate over every relations
+        print(f"=====Working on Gr{count}=====")
+
         curv_estimates = []
-        # ==== Insert code to find D here ===
-        # D = 
-
 
         C = [Gr.subgraph(component).copy() for component in nx.connected_components(Gr)]    #get the list of connected components of Gr
+        print(f"There are {len(C)} Connected Components")
         N = np.array([component.order() for component in C])        #get the number of nodes in each component
-        N_cube = np.power(N,3)      
+        N_cube = np.power(N,3)    
         N_sum = np.sum(N_cube)              #the normalizing factor
-        W = 1/N_sum * N_cube        #The list of Weights    
+        W = 1/N_sum * N_cube        #The list of Weights 
         index = 0
         for component in C:
-            samples = sample_G(component, D, N[index], W[index])
+            # if index%100 == 0:
+            #     print(f"Working on Component {index+1}, has {component.order()} nodes.")
+            # print("Is it connected?: ",nx.is_connected(component))
+            samples = sample_G(component, N[index], W[index])
             avg = np.mean(samples)
             curv_estimates.append(avg)
             index += 1;
         curv_estimates = np.array(curv_estimates)
         Gr_curve = np.mean(curv_estimates)
+        relation_estimates.append(Gr_curve)
+        count+=1
 
-
-    # ==== Calculate the Weighted average of Curvature Estimate for the Whole Graph ===
-
-
+    return relation_estimates
 
 
 """
