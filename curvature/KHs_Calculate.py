@@ -1,3 +1,10 @@
+"""
+This file calculates the Krachhardt Hierarchy score for each training data.
+The output is in the respective output file. 
+The score is given for each relation in each directed graph.
+"""
+
+
 import numpy as np
 import networkx as nx
 import curvEstimate
