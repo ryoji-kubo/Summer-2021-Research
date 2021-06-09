@@ -5,6 +5,9 @@ import numpy as np
 - See Appendix A.2 of "Low-Dimensional Hyperbolic Knowledge Graph Embeddings" for the calculation
 - See "Learning Mixed-Curvature Representations in Product Spaces" for the detailed proof and calculation
 
+the curvature estimate captures global hierarchical behaviours (how much the graph is tree-like when zoomingout)
+
+
 How to calcute the curvature estimate:
 1. Create a list of undirected graphs Gr spanned by edges labeled as r
 2. For each Gr, get the list of Connected Components (C), Distance Matrix D (indicates the distance bet. 2 nodes on Gr, and list of number of Nodes for each Component (N))
