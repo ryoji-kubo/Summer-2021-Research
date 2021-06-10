@@ -38,13 +38,19 @@ What I have not implemented yet ( indicated in estimate() )
 #     return D
 
 def Ka(m, b, c, a, component):
-    if a == m: return 0.0
     d_a_m = len(nx.shortest_path(component, source=a,target=m))-1
     d_b_c = len(nx.shortest_path(component, source=b,target=c))-1
-    d_a_c = len(nx.shortest_path(component, source=a,target=c))-1
-    d_a_b = len(nx.shortest_path(component, source=a,target=b))-1
+    if a==c:
+        d_a_c = 0.0;
+    else:
+        d_a_c = len(nx.shortest_path(component, source=a,target=c))-1
+
+    if a==b:
+        d_a_b = 0.0
+    else:
+        d_a_b = len(nx.shortest_path(component, source=a,target=b))-1
     k = d_a_m**2 + d_b_c**2/4.0 - (d_a_b**2 + d_a_c**2)/2.0
-    k = k/(2.0*d_a_m)
+    k = k/(2*d_a_m)
     # print(f'{m}; {b} {c}; {a}: {k}')
     return k
 
@@ -58,29 +64,26 @@ def sample_G(component, n, w):   #Parameters: the connected component, distance 
     _cnt = 0
 
     while _cnt < 1000*w:
-        if n<3:
-            k = -1
-        else:
-            m_index = np.random.randint(0, n)                            
-            m = node_list[m_index]                 #pick randomly m, the midpoint of the shortest path connecting b to c (b, c will be m's two neighbors)
-            edges = list(component.edges(m))                    
-            # print(f"edges of {m}: {edges}")
-            i = np.random.randint(0, len(edges))        #pick a random node (2nd node of the triangle, node b)
-            j = np.random.randint(0, len(edges))        #pick a random node (3rd node of the triangle, node c)
-            b = edges[i][1]
-            c = edges[j][1]
-            if b==c: continue
-            a = node_list[np.random.randint(0, n)]                 #pick a randdom node (1st node of the triangle, node a)
+        m_index = np.random.randint(0, n)                            
+        m = node_list[m_index]                 #pick randomly m, the midpoint of the shortest path connecting b to c (b, c will be m's two neighbors)
+        edges = list(component.edges(m))                    
+        # print(f"edges of {m}: {edges}")
+        i = np.random.randint(0, len(edges))        #pick a random node (2nd node of the triangle, node b)
+        j = np.random.randint(0, len(edges))        #pick a random node (3rd node of the triangle, node c)
+        b = edges[i][1]
+        c = edges[j][1]
+        a = node_list[np.random.randint(0, n)]                 #pick a randdom node (1st node of the triangle, node a)
+        if b==c or a==m or a==b or a==c: continue
 
-            b_index = node_list.index(b)
-            c_index = node_list.index(c)
-            a_index = node_list.index(a)
-            k = Ka(m, b, c, a, component)                       #calculate the curvature estimate for that function.
+        b_index = node_list.index(b)
+        c_index = node_list.index(c)
+        a_index = node_list.index(a)
+        k = Ka(m, b, c, a, component)                       #calculate the curvature estimate for that function.
         samples.append(k)                         
         # print(k)
 
-        if _cnt%100 == 0:
-            print(f"Finished on triangle {_cnt}")
+        # if _cnt%100 == 0:
+        #     print(f"Finished on triangle {_cnt}")
 
         _cnt += 1
 
@@ -99,6 +102,7 @@ def estimate(G_list):
     print(f"Calculating the Curvature Estimate for {len(G_list)} Gr")
 
     count = 1
+    Weights = []    #Weight for the entire graph
     for Gr in G_list:   #iterate over every relations
         print(f"=====Working on Gr{count}=====")
 
@@ -107,15 +111,23 @@ def estimate(G_list):
         C = [Gr.subgraph(component).copy() for component in nx.connected_components(Gr)]    #get the list of connected components of Gr
         print(f"There are {len(C)} Connected Components")
         N = np.array([component.order() for component in C])        #get the number of nodes in each component
-        print(f"N: {N}")
+        
+        _filter = N>=4
+        N = N*(_filter)             #filter out components that have less than 3 nodes
+
+        # print(f"N: {N}")
         N_cube = np.power(N,3)    
         N_sum = np.sum(N_cube)              #the normalizing factor
-        W = N_cube * 1/N_sum        #The list of Weights 
+
+        Weights.append(N_sum)
+
+        W = N_cube * 1/float(N_sum)        #The list of Weights 
+        # print(f"W: {W}")
         index = 0
         for component in C:
-            if index%100 == 0:
-                print(f"Working on Component {index+1}, has {component.order()} nodes.")
-            # print("Is it connected?: ",nx.is_connected(component))
+            if _filter[index] == 0:     #skip components with less than 3 nodes
+                index+=1
+                continue
             samples = sample_G(component, N[index], W[index])
             avg = np.mean(samples)
             curv_estimates.append(avg)
@@ -125,7 +137,15 @@ def estimate(G_list):
         relation_estimates.append(Gr_curve)
         count+=1
 
-    return relation_estimates
+    Weights = np.array(Weights)
+    Weights_sum = np.sum(Weights)   #Normalizing factor
+    Weights = 1/float(Weights_sum) * Weights
+
+    relation_curve = np.array(relation_estimates)
+    curv_graph = Weights * relation_curve
+    curv = np.mean(curv_graph)
+
+    return relation_estimates, curv
 
 
 """
