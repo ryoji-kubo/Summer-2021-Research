@@ -21,8 +21,6 @@ How to calcute the curvature estimate:
 
 
 What I have not implemented yet ( indicated in estimate() )
-- Create a list of undirected graphs Gr spanned by edges labeled as r
-- Distance Matrix D
 - The weighted average of the Curvature Estimate for the entire relations (the whole graph)
 """
 
@@ -32,7 +30,7 @@ def createDistance(component, node_list):     #function to create the Distance M
     D = np.zeros((n,n)) #This will be the distance matrix
 
     for i in range(n):  #Create the Distance Matrix
-        # print(f"Working on {i} node")
+        print(f"Working on {i} node")
         for j in range(i,n-1):
                 D[i][j+1] = len(nx.shortest_path(component, source=node_list[i],target=node_list[j+1]))-1
                 # print(f"Distance({node_list[i]},{node_list[j+1]}) = {D[i][j+1]}")
@@ -50,13 +48,13 @@ def Ka(D, m, b, c, a, node_list):
 #function to sample 1000*W[i] triangles from a connected component and calculate the curvature estimate for each
 def sample_G(component, n, w):   #Parameters: the connected component, distance matrix, number of nodes, weight
     if n < 3:
-        # print(f"Only {n} nodes, returning 0")
+        print(f"Only {n} nodes, returning 0")
         return np.array([0])
 
     node_list = list(component.nodes)
-    # print("Creating Distance Matrix...")
+    print("Creating Distance Matrix...")
     D = createDistance(component, node_list)  #Create the Distance Matrix D
-    # print("Done Creating Distance Matrix")
+    print("Done Creating Distance Matrix")
     samples = []                                    #This will contain the curvature estimates for all the sampled triangles
     _cnt = 0
 
@@ -79,8 +77,8 @@ def sample_G(component, n, w):   #Parameters: the connected component, distance 
         samples.append(k)                           
         # print(k)
 
-        # if _cnt%100 == 0:
-        #     print(f"Finished on triangle {_cnt}")
+        if _cnt%100 == 0:
+            print(f"Finished on triangle {_cnt}")
 
         _cnt += 1
 
@@ -112,8 +110,8 @@ def estimate(G_list):
         W = 1/N_sum * N_cube        #The list of Weights 
         index = 0
         for component in C:
-            # if index%100 == 0:
-            #     print(f"Working on Component {index+1}, has {component.order()} nodes.")
+            if index%100 == 0:
+                print(f"Working on Component {index+1}, has {component.order()} nodes.")
             # print("Is it connected?: ",nx.is_connected(component))
             samples = sample_G(component, N[index], W[index])
             avg = np.mean(samples)
